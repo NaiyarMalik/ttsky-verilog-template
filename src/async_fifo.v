@@ -51,7 +51,7 @@ module async_fifo #(
     // ==========================================
     // 2. WRITE POINTER & FULL FLAG GENERATION
     // ==========================================
-    assign wbinnext  = wbin + (W_INC & ~FULL);
+    assign wbinnext = wbin + ((W_INC && !FULL) ? 5'b00001 : 5'b00000);
     assign wgraynext = (wbinnext >> 1) ^ wbinnext; // Binary to Gray formula
 
     always @(posedge W_CLK or negedge W_RST) begin
@@ -91,7 +91,7 @@ module async_fifo #(
     // ==========================================
     // 3. READ POINTER & EMPTY FLAG GENERATION
     // ==========================================
-    assign rbinnext  = rbin + (R_INC & ~EMPTY);
+    assign rbinnext = rbin + ((R_INC && !EMPTY) ? 5'b00001 : 5'b00000);
     assign rgraynext = (rbinnext >> 1) ^ rbinnext; // Binary to Gray formula
 
     always @(posedge R_CLK or negedge R_RST) begin

@@ -25,7 +25,7 @@ module clk_div
 
 
 
-	always @(posedge i_ref_clk or negedge i_rst)               // counter reset condition 
+	always @(posedge i_ref_clk)               // counter reset condition 
 	 begin 
 	  if(!i_rst)
 		begin
@@ -53,8 +53,8 @@ module clk_div
 
 
 	assign is_odd = i_div_ratio[0] ;
-	assign edge_flip_half = ((i_div_ratio >> 1) - 1 ) ;
-	assign edge_flip_full = (i_div_ratio >> 1) ;
+	assign edge_flip_half = i_div_ratio[7:1] - 1'b1;
+	assign edge_flip_full = i_div_ratio[7:1];
 
 	assign is_zero = ~|i_div_ratio ;                               // check if ratio equals to 0 
 	assign is_one  = (i_div_ratio == 1'b1) ;                       // check if ratio equals to 1 

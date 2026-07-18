@@ -34,7 +34,7 @@ module ALU
 								
 								4'b0000: // Addition
 									begin
-										alu_out_i <= A + B;
+										alu_out_i <= {8'b0,A} + {8'b0,B};
 										out_valid_i <= 1'b1;
 									end
 									
@@ -104,7 +104,7 @@ module ALU
 								
 								4'b1010: // Equality
 									begin
-										alu_out_i <= (A == B);
+										alu_out_i <= {15'b0,(A==B)};
 										out_valid_i <= 1'b1;
 									end
 							

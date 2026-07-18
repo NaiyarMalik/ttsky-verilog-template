@@ -34,7 +34,7 @@ module uart_rx
 	wire [5:0] end_of_bit    = (prescale - 1'b1);
 
 	// Sequential Block
-	always @(posedge clk or negedge rst) 
+	always @(posedge clk) 
 		begin
 			if (!rst) 
 				begin

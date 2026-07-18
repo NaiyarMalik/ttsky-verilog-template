@@ -26,7 +26,7 @@ module uart_tx
     
 
 
-	always @(posedge clk or negedge rst) 
+	always @(posedge clk) 
 		begin
 			if(!rst) 
 				begin
