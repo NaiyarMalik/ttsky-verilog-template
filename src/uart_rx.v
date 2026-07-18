@@ -171,7 +171,7 @@ module uart_rx
 		end
 
 	// Sequential Block: Error Flag Registers & Parallel Data Output Publish
-	always @(posedge clk or negedge rst) 
+	always @(posedge clk) 
 		begin
 			if (!rst) 
 				begin
