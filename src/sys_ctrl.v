@@ -83,7 +83,7 @@ module sys_ctrl
 	reg [15:0] hold_alu_out;
 	
 	
-	always @ (posedge clk or negedge rst)
+	always @ (posedge clk)
 		begin
 			if(!rst)
 				begin
