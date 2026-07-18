@@ -19,7 +19,7 @@ module ALU
 		begin
 			if(!RST)
 				begin
-					alu_out_i <= {15{1'b0}};
+					alu_out_i <= {16{1'b0}};
 					out_valid_i <= 1'b0;
 				end
 				
@@ -55,7 +55,7 @@ module ALU
 										if(B != 0)
 											alu_out_i <= A / B;
 										else
-											alu_out_i <= {15{1'b0}};
+											alu_out_i <= {16{1'b0}};
 
 										
 										out_valid_i <= 1'b1;
@@ -130,7 +130,7 @@ module ALU
 									
 								default:
 									begin
-										alu_out_i   <= {15{1'b0}};
+										alu_out_i   <= {16{1'b0}};
 										out_valid_i <= 1'b0;
 									end
 
