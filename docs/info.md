@@ -9,7 +9,7 @@ You can also include images in this folder and reference them in the markdown. E
 
 ## How it works
 
-Explain how your project works
+This project implements an integrated system that executes remote commands sent over a serial UART interface. The core consists of ten functional blocks distributed across two distinct clock domains: a high-speed reference clock domain (REF_CLK) and a standard communication clock domain (UART_CLK).  Incoming data frames received by the UART Receiver are synchronized and pushed to a system controller. This controller parses commands to perform either Register File reads/writes or arithmetic/logic operations using a built-in ALU. To handle the clock-domain crossing smoothly between processing and serialization, data results are buffered through an Asynchronous FIFO before being sent back to the master terminal via the UART Transmitter.
 
 ## How to test
 
