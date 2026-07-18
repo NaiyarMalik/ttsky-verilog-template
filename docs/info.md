@@ -13,7 +13,12 @@ This project implements an integrated system that executes remote commands sent 
 
 ## How to test
 
-Explain how to use your project
+## How to test
+
+To test this project:
+
+Clone the repository.
+Run the provided testbench:
 
 ## External hardware
 
