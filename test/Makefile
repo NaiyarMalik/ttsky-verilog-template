@@ -6,18 +6,7 @@ SIM ?= icarus
 FST ?= -fst # Use more efficient FST format
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
-PROJECT_SOURCES = TinyProcessor_naiyar_.v \
-                  ALU.v \
-                  regfile.v \
-                  clk_gate.v \
-                  rst_sync.v \
-                  uart_tx.v \
-                  uart_rx.v \
-                  sys_ctrl.v \
-				  async_fifo.v \
-				  pulse_gen.v \
-				  clk_div.v \
-				  data_sync.v 
+PROJECT_SOURCES = TinyProcessor_naiyar_.v ALU.v regfile.v clk_gate.v rst_sync.v uart_tx.v uart_rx.v sys_ctrl.v async_fifo.v pulse_gen.v clk_div.v data_sync.v 
 
 
 
