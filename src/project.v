@@ -5,7 +5,7 @@
 
 `default_nettype none
 
-module TinyProcessor_naiyar_ (
+module tt_um_TinyProcessor_naiyar_ (
 	input  wire [7:0] ui_in,    // RX INPUT
    output wire [7:0] uo_out,   // TX OUTPUT
    input  wire [7:0] uio_in,   // 
