@@ -57,7 +57,7 @@ module clk_div
 	assign edge_flip_full = i_div_ratio[7:1];
 
 	assign is_zero = ~|i_div_ratio ;                               // check if ratio equals to 0 
-	assign is_one  = (i_div_ratio == 1'b1) ;                       // check if ratio equals to 1 
+	assign is_one = (i_div_ratio == {{(RATIO_WD-1){1'b0}},1'b1});  // check if ratio equals to 1 
 	assign clk_en = i_clk_en & !is_one & !is_zero;                 // Enable if div_ratio not equal to 0 or 1 and block is enabled
 	assign o_div_clk = clk_en ? div_clk : i_ref_clk ;              // if clock divider is disabled : generated clock is the reference clock
 

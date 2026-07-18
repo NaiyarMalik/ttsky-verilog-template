@@ -40,7 +40,7 @@ module ALU
 									
 								4'b0001: // Subtraction
 									begin
-										alu_out_i <= A - B;
+										alu_out_i <= {8'b0, A} - {8'b0, B};
 										out_valid_i <= 1'b1;
 									end
 									
@@ -53,7 +53,7 @@ module ALU
 								4'b0011: // Divide
 									begin
 										if(B != 0)
-											alu_out_i <= A / B;
+											alu_out_i <= {8'b0, A} / {8'b0, B};
 										else
 											alu_out_i <= {16{1'b0}};
 
@@ -65,37 +65,37 @@ module ALU
 								
 								4'b0100: // AND
 									begin
-										alu_out_i <= A & B;
+										alu_out_i <= {8'b0, A} & {8'b0, B};
 										out_valid_i <= 1'b1;
 									end
 									
 								4'b0101: // OR
 									begin
-										alu_out_i <= A | B;
+										alu_out_i <= {8'b0, A} | {8'b0, B};
 										out_valid_i <= 1'b1;
 									end
 									
 								4'b0110: // NAND
 									begin
-										alu_out_i <= ~(A & B);
+										alu_out_i <= ~({8'b0, A} & {8'b0, B});
 										out_valid_i <= 1'b1;
 									end
 									
 								4'b0111: // NOR
 									begin
-										alu_out_i <= ~(A | B);
+										alu_out_i <= ~({8'b0, A} | {8'b0, B});
 										out_valid_i <= 1'b1;
 									end
 									
 								4'b1000: // XOR
 									begin
-										alu_out_i <= A ^ B;
+										alu_out_i <= {8'b0, A} ^ {8'b0, B};
 										out_valid_i <= 1'b1;
 									end
 								
 								4'b1001: // XNOR
 									begin
-										alu_out_i <= ~(A ^ B);
+										alu_out_i <= ~({8'b0, A} ^ {8'b0, B});
 										out_valid_i <= 1'b1;
 									end
 							
@@ -110,7 +110,7 @@ module ALU
 							
 								4'b1011: // A greater than B
 									begin
-										alu_out_i <= (A > B);
+										alu_out_i <= {15'b0, (A > B)};
 										out_valid_i <= 1'b1;
 									end
 									
@@ -118,13 +118,13 @@ module ALU
 									
 								4'b1100: // A shifts right
 									begin
-										alu_out_i <= (A >> 1);
+										alu_out_i <= {8'b0, A} >> 1;
 										out_valid_i <= 1'b1;
 									end
 									
 								4'b1101: // A shifts left
 									begin
-										alu_out_i <= (A << 1);
+										alu_out_i <= {8'b0, A} << 1;
 										out_valid_i <= 1'b1;
 									end
 									
