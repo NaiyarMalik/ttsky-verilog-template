@@ -17,18 +17,26 @@ project:
   # Source files must be in ./src and you must list each source file separately, one per line.
   # Don't forget to also update `PROJECT_SOURCES` in test/Makefile.
   source_files:
-    - "project.v"
+    - "SYS_TOP.v"
+    - "SYS_CTRL.v" 
     - "ALU.v"
-    - "async_fifo.v"
-    - "uart_rx.v"
-    - "uart_tx.v"
-    - "pulse_gen.v"
-    - "regFile.v"
-    - "sys_ctrl.v"
-    - "rst_sync.v"
-    - "data_sync.v"
-    - "clk_div.v"
-    - "clk_gate.v"
+    - "RegFile.v"
+    - "CLK_GATE.v"
+    - "RST_SYNC.v" 
+    - "ClkDiv.v"
+    - "CLKDIV_MUX.v" 
+    - "UART_RX.v"
+    - "UART_TX.v"
+    - "uart_rx_fsm.v"
+    - "uart_tx_fsm.v"
+    - "serializer.v"
+    - "deserializer.v"
+    - "data_sampling.v"
+    - "edge_bit_counter.v" 
+    - "parity_calc.v"
+    - "parity_check.v" 
+    - "stp_chk.v"
+    - "strt_chk.v"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 # This section is for the datasheet/website. Use descriptive names (e.g., RX, TX, MOSI, SCL, SEG_A, etc.).
@@ -45,8 +53,8 @@ pinout:
 
   # Outputs
   uo[0]: "UART_TX"
-  uo[1]: ""
-  uo[2]: ""
+  uo[1]: "Parity_Error"
+  uo[2]: "Framing_Error"
   uo[3]: ""
   uo[4]: ""
   uo[5]: ""

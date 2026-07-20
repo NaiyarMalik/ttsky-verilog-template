@@ -1,5 +1,5 @@
 
-module tt_um_example (
+module tt_um_TinyProcessor_naiyar_ (
     input wire [7:0] ui_in,
     output wire [7:0] uo_out,
     input wire [7:0] uio_in,
