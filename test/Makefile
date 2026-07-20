@@ -6,8 +6,27 @@ SIM ?= icarus
 FST ?= -fst # Use more efficient FST format
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
-PROJECT_SOURCES = SYS_TOP.v ALU.v Regfile.v clk_gate.v rst_sync.v uart_tx.v uart_rx.v sys_ctrl.v async_fifo.v pulse_gen.v clk_div.v data_sync.v 
-
+PROJECT_SOURCES = \
+src/SYS_TOP.v \
+src/SYS_CTRL.v \
+src/ALU.v \
+src/RegFile.v \
+src/CLK_GATE.v \
+src/RST_SYNC.v \
+src/ClkDiv.v \
+src/CLKDIV_MUX.v \
+src/UART_RX.v \
+src/UART_TX.v \
+src/uart_rx_fsm.v \
+src/uart_tx_fsm.v \
+src/serializer.v \
+src/deserializer.v \
+src/data_sampling.v \
+src/edge_bit_counter.v \
+src/parity_calc.v \
+src/parity_check.v \
+src/stp_chk.v \
+src/strt_chk.v
 
 
 ifneq ($(GATES),yes)
