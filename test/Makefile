@@ -7,26 +7,26 @@ FST ?= -fst # Use more efficient FST format
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
 PROJECT_SOURCES = \
-src/SYS_TOP.v \
-src/SYS_CTRL.v \
-src/ALU.v \
-src/RegFile.v \
-src/CLK_GATE.v \
-src/RST_SYNC.v \
-src/ClkDiv.v \
-src/CLKDIV_MUX.v \
-src/UART_RX.v \
-src/UART_TX.v \
-src/uart_rx_fsm.v \
-src/uart_tx_fsm.v \
-src/serializer.v \
-src/deserializer.v \
-src/data_sampling.v \
-src/edge_bit_counter.v \
-src/parity_calc.v \
-src/parity_check.v \
-src/stp_chk.v \
-src/strt_chk.v
+SYS_TOP.v \
+SYS_CTRL.v \
+ALU.v \
+RegFile.v \
+CLK_GATE.v \
+RST_SYNC.v \
+ClkDiv.v \
+CLKDIV_MUX.v \
+UART_RX.v \
+UART_TX.v \
+uart_rx_fsm.v \
+uart_tx_fsm.v \
+serializer.v \
+deserializer.v \
+data_sampling.v \
+edge_bit_counter.v \
+parity_calc.v \
+parity_check.v \
+stp_chk.v \
+strt_chk.v
 
 
 ifneq ($(GATES),yes)
