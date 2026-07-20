@@ -27,12 +27,13 @@ always @(posedge CLK or negedge RST)
     begin
 	 RdData_VLD <= 1'b0 ;
 	 RdData     <= 'b0 ;
+
       for (I=0 ; I < DEPTH ; I = I +1)
         begin
 		 if(I==2)
           regArr[I] <= 'b100000_01 ;
 		 else if (I==3) 
-          regArr[I] <= 'b0010_0000 ;
+          regArr[I] <= 'b0000_1110 ;
          else
           regArr[I] <= 'b0 ;		 
         end

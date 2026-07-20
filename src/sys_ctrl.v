@@ -10,7 +10,6 @@ input    wire   [WIDTH*2-1:0] ALU_OUT,
 input    wire                 ALU_OUT_VLD, 
 input    wire   [WIDTH-1:0]   UART_RX_DATA, 
 input    wire                 UART_RX_VLD,
-input    wire                 FIFO_FULL,
 output   reg                  ALU_EN,
 output   reg    [3:0]         ALU_FUN,  
 output   reg                  CLKG_EN, 
@@ -20,7 +19,8 @@ output   reg                  RF_RdEn,
 output   reg   [ADDR-1:0]     RF_Address,
 output   reg   [WIDTH-1:0]    RF_WrData,
 output   reg   [WIDTH-1:0]    UART_TX_DATA, 
-output   reg                  UART_TX_VLD
+output   reg                  UART_TX_VLD,
+input    wire                 UART_TX_BUSY,
 );
 
 
@@ -127,7 +127,7 @@ always @ (*)
                    end			  
                 end
  SEND_RF_RD_DAT_S : begin
-					if(RF_RdData_VLD)
+					if(RF_RdData_VLD && !UART_TX_BUSY)
 					  begin
 					   next_state = IDLE ; 				
                       end
@@ -176,13 +176,23 @@ always @ (*)
 								next_state = ALU_OUT_STORE_S ; 			
 							end			  
 						end
-  ALU_WAIT_1st_byte_S : begin
-							next_state = ALU_WAIT_2nd_byte_S ; 						  
-						end	
-  ALU_WAIT_2nd_byte_S : begin
-							next_state = IDLE ; 						  
-						end				
-  default     : begin
+  ALU_WAIT_1st_byte_S : 
+  	begin
+		if(!UART_TX_BUSY)
+			next_state = ALU_WAIT_2nd_byte_S;
+		else
+			next_state = ALU_WAIT_1st_byte_S;
+	end				  
+						
+	ALU_WAIT_2nd_byte_S : 
+		begin
+			if(!UART_TX_BUSY)
+				next_state = IDLE;
+			else
+				next_state = ALU_WAIT_2nd_byte_S;
+		end  
+
+	default     : begin
 			      next_state = IDLE ; 
                 end	
   endcase                 	   
@@ -250,7 +260,7 @@ always @ (*)
                    end					   	  
                 end				
   SEND_RF_RD_DAT_S : begin
-						if(RF_RdData_VLD && !FIFO_FULL)
+						if(RF_RdData_VLD && !UART_TX_BUSY)
 							begin
 								UART_TX_DATA  = RF_RdData ; 
 								UART_TX_VLD   = 1'b1 ;	
@@ -313,17 +323,18 @@ always @ (*)
 							end	
 						end						
   ALU_WAIT_1st_byte_S:	begin
-							CLKG_EN = 1'b1 ;
-							if(!FIFO_FULL)	
-							begin			
-								UART_TX_DATA  = ALU_OUT_REG[WIDTH-1:0] ; 
-								UART_TX_VLD   = 1'b1 ;	
-							end	
+							CLKG_EN = 1'b1 ;			
+							if(!UART_TX_BUSY)
+								begin
+									UART_TX_DATA  = ALU_OUT_REG[WIDTH-1:0] ; 
+									UART_TX_VLD   = 1'b1 ;	
+								end
+
 						end	
   ALU_WAIT_2nd_byte_S: 	begin
-							CLKG_EN = 1'b1 ;
-							if(!FIFO_FULL)	
-								begin	
+							CLKG_EN = 1'b1 ;	
+							if(!UART_TX_BUSY)
+								begin
 									UART_TX_DATA  = ALU_OUT_REG[2*WIDTH-1:WIDTH] ; 
 									UART_TX_VLD   = 1'b1 ;	
 								end
