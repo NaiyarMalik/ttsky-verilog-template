@@ -24,7 +24,7 @@ deserializer.v \
 data_sampling.v \
 edge_bit_counter.v \
 parity_calc.v \
-parity_chk.v \
+par_chk.v \
 stp_chk.v \
 strt_chk.v
 
