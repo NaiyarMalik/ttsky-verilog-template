@@ -33,7 +33,7 @@ assign _unused = &{ena, uio_in};
 
 localparam DATA_WIDTH = 8, RF_ADDR = 4;
 
-                                       SYNC_REF_RST;
+wire                                   SYNC_REF_RST;
 									   
 wire					               UART_TX_CLK;
 wire					               UART_RX_CLK;
