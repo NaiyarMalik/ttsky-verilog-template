@@ -19,7 +19,7 @@ UART_RX.v \
 UART_TX.v \
 uart_rx_fsm.v \
 uart_tx_fsm.v \
-serializer.v \
+Serializer.v \
 deserializer.v \
 data_sampling.v \
 edge_bit_counter.v \
