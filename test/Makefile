@@ -26,7 +26,8 @@ edge_bit_counter.v \
 parity_calc.v \
 par_chk.v \
 stp_chk.v \
-strt_chk.v
+strt_chk.v \ 
+UART.v
 
 
 ifneq ($(GATES),yes)
