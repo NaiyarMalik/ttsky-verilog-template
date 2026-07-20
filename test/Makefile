@@ -27,7 +27,8 @@ parity_calc.v \
 par_chk.v \
 stp_chk.v \
 strt_chk.v \ 
-UART.v
+UART.v \
+mux.v
 
 
 ifneq ($(GATES),yes)

@@ -38,6 +38,7 @@ project:
     - "strt_chk.v"
     - "SYS_CTRL.v"
     - "UART.v"
+    - "mux.v"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 # This section is for the datasheet/website. Use descriptive names (e.g., RX, TX, MOSI, SCL, SEG_A, etc.).
