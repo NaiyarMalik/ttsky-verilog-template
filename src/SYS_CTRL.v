@@ -20,7 +20,7 @@ output   reg   [ADDR-1:0]     RF_Address,
 output   reg   [WIDTH-1:0]    RF_WrData,
 output   reg   [WIDTH-1:0]    UART_TX_DATA, 
 output   reg                  UART_TX_VLD,
-input    wire                 UART_TX_BUSY,
+input    wire                 UART_TX_BUSY
 );
 
 

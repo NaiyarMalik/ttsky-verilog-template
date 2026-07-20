@@ -12,12 +12,12 @@ module data_sampling (
               
 reg  [2:0]    Samples ;
 
-wire [4:0]    half_edges ,
-              half_edges_p1 ,
-			  half_edges_n1 ;
+wire [5:0]    half_edges ,
+              half_edges_p1 ,			  
+              half_edges_n1 ;
 
 
-assign 	half_edges    = (Prescale >> 1) - 'b1 ;
+assign 	half_edges    = (Prescale >> 1) - 6'b1 ;
 assign 	half_edges_p1 =  half_edges + 'b1 ;
 assign 	half_edges_n1 =  half_edges - 'b1 ;
 		  			  

@@ -19,10 +19,10 @@ always @ (*)
   begin
     case(parity_type)
     1'b0 : begin                 
-	        parity <= ^P_DATA  ;     // Even Parity
+	        parity = ^P_DATA  ;     // Even Parity
 	       end
     1'b1 : begin
-	        parity <= ~^P_DATA ;     // Odd Parity
+	        parity = ~^P_DATA ;     // Odd Parity
 	       end		
     endcase       	 
  end 
