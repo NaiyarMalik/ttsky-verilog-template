@@ -40,34 +40,34 @@ always @(*)
 	 OUT_VALID_Comb = 1'b1 ;
      case (ALU_FUN) 
      4'b0000: begin
-               ALU_OUT_Comb = A+B;
+               ALU_OUT_Comb = {8'b0,A} + {8'b0,B};
               end
      4'b0001: begin
-               ALU_OUT_Comb = A-B;
+               ALU_OUT_Comb = {8'b0,A} - {8'b0,B};
               end
      4'b0010: begin
                ALU_OUT_Comb = A*B;
               end
      4'b0011: begin
-               ALU_OUT_Comb = A/B;
+               ALU_OUT_Comb = {8'b0,A} / {8'b0,B};
               end
      4'b0100: begin
-               ALU_OUT_Comb = A & B;
+               ALU_OUT_Comb = {8'b0,A} & {8'b0,B};
               end
      4'b0101: begin
-               ALU_OUT_Comb = A | B;
+               ALU_OUT_Comb = {8'b0,A} | {8'b0,B};
               end
      4'b0110: begin
-               ALU_OUT_Comb = ~ (A & B);
+               ALU_OUT_Comb = ~ ({8'b0,A} & {8'b0,B});
               end
      4'b0111: begin
-               ALU_OUT_Comb = ~ (A | B);
+               ALU_OUT_Comb = ~ ({8'b0,A} | {8'b0,B});
               end     
      4'b1000: begin
-               ALU_OUT_Comb =  (A ^ B);
+               ALU_OUT_Comb = {8'b0,A} ^ {8'b0,B};
               end
      4'b1001: begin
-               ALU_OUT_Comb = ~ (A ^ B);
+               ALU_OUT_Comb = ~ ({8'b0,A} ^ {8'b0,B});
               end           
      4'b1010: begin
               if (A==B)
@@ -88,10 +88,10 @@ always @(*)
                  ALU_OUT_Comb = 'b0;
               end     
      4'b1101: begin
-               ALU_OUT_Comb = A>>1;
+               ALU_OUT_Comb = {8'b0,A} >> 1;
               end
      4'b1110: begin 
-               ALU_OUT_Comb = A<<1;
+               ALU_OUT_Comb = {8'b0,A} << 1;
               end
     default: begin
                ALU_OUT_Comb = 'b0;
