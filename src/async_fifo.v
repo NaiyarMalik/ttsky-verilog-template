@@ -1,130 +1,79 @@
-module async_fifo #(
-    parameter DATA_WIDTH = 8,
-    parameter ADDR_WIDTH = 4  // FIFO Depth = 2^ADDR_WIDTH = 16 locations
-) (
-    // Write Domain (Source: System Ctrl)
-    input  wire                  W_CLK,     // Write clock (REF_CLK)
-    input  wire                  W_RST,     // Async reset (from RST_SYNC_1, active-low)
-    input  wire                  W_INC,     // Write enable / increment
-    input  wire [DATA_WIDTH-1:0] WR_DATA,   // Data to write
-    output reg                   FULL,      // FIFO full flag
 
-    // Read Domain (Destination: UART TX)
-    input  wire                  R_CLK,     // Read clock
-    input  wire                  R_RST,     // Async reset (from RST_SYNC_2, active-low)
-    input  wire                  R_INC,     // Read enable / increment
-    output wire [DATA_WIDTH-1:0] RD_DATA,   // Data to read
-    output reg                   EMPTY      // FIFO empty flag
+module Async_fifo #(
+  parameter D_SIZE = 8 ,                         // data size
+  parameter A_SIZE = 3  ,                         // address size
+  parameter P_SIZE = 4  ,                         // pointer width
+  parameter F_DEPTH = 8                           // fifo depth
+)
+ (
+   input                    i_w_clk,              // write domian operating clock
+   input                    i_w_rstn,             // write domian active low reset  
+   input                    i_w_inc,              // write control signal 
+   input                    i_r_clk,              // read domian operating clock
+   input                    i_r_rstn,             // read domian active low reset 
+   input                    i_r_inc,              // read control signal
+   input   [D_SIZE-1:0]     i_w_data,             // write data bus 
+   output  [D_SIZE-1:0]     o_r_data,             // read data bus
+   output                   o_full,               // fifo full flag
+   output                   o_empty               // fifo empty flag
+
 );
 
-    // Dual-Port RAM Memory
-    localparam DEPTH = 1 << ADDR_WIDTH;
-    reg [DATA_WIDTH-1:0] fifo_mem [0:DEPTH-1];
 
-    // Pointers
-    reg [ADDR_WIDTH:0] wbin, rbin;     // Binary pointers (1 extra bit for wrap-around)
-    reg [ADDR_WIDTH:0] wptr, rptr;     // Gray pointers
-    
-    // Synchronized Gray Pointer Registers
-    reg [ADDR_WIDTH:0] wq1_rptr, wq2_rptr; // Read pointer synchronized to W_CLK
-    reg [ADDR_WIDTH:0] rq1_wptr, rq2_wptr; // Write pointer synchronized to R_CLK
+wire [A_SIZE-1:0] r_addr , w_addr ;
+wire [P_SIZE-1:0] w2r_ptr , r2w_ptr ;
+wire [P_SIZE-1:0] gray_w_ptr , gray_rd_ptr ;
 
-    // Internal wire assignments for Gray Code conversion
-    wire [ADDR_WIDTH:0] wgraynext, rgraynext;
-    wire [ADDR_WIDTH:0] wbinnext, rbinnext;
+ 
+fifo_mem #(.F_DEPTH(F_DEPTH), .A_SIZE(3), .D_SIZE(8), .P_SIZE(4) )  u_fifo_mem (
+.w_clk(i_w_clk),              
+.w_rstn(i_w_rstn),
+.w_inc(i_w_inc),                             
+.w_full(o_full),              
+.w_addr(w_addr),            
+.r_addr(r_addr),
+.w_data(i_w_data),                        
+.r_data(o_r_data)
+); 
 
-    // ==========================================
-    // 1. DUAL-PORT MEMORY WRITE & READ
-    // ==========================================
-    
-    // Write to memory (Write Clock Domain)
-    always @(posedge W_CLK) begin
-        if (W_INC && !FULL) begin
-            fifo_mem[wbin[ADDR_WIDTH-1:0]] <= WR_DATA;
-        end
-    end
-
-    // Direct asynchronous read output (Read Clock Domain)
-    assign RD_DATA = fifo_mem[rbin[ADDR_WIDTH-1:0]];
+DF_Sync #(.DATA_SIZE(4)) u_w2r_sync
+(
+.sync_clk(i_r_clk) ,
+.sync_rstn(i_r_rstn) ,
+.unsync_ip(gray_w_ptr) ,
+.sync_op(w2r_ptr)
+);
 
 
-    // ==========================================
-    // 2. WRITE POINTER & FULL FLAG GENERATION
-    // ==========================================
-    assign wbinnext = wbin + ((W_INC && !FULL) ? 5'b00001 : 5'b00000);
-    assign wgraynext = (wbinnext >> 1) ^ wbinnext; // Binary to Gray formula
-
-    always @(posedge W_CLK or negedge W_RST) begin
-        if (!W_RST) begin
-            wbin <= 0;
-            wptr <= 0;
-        end else begin
-            wbin <= wbinnext;
-            wptr <= wgraynext;
-        end
-    end
-
-    // Synchronize Read Pointer into Write Clock Domain (W_CLK)
-    always @(posedge W_CLK or negedge W_RST) begin
-        if (!W_RST) begin
-            wq1_rptr <= 0;
-            wq2_rptr <= 0;
-        end else begin
-            wq1_rptr <= rptr;
-            wq2_rptr <= wq1_rptr;
-        end
-    end
-
-    // Full condition check
-    // Full when MSB & MSB-1 are inverted, but the remaining bits match
-    wire wfull_val = (wgraynext == {~wq2_rptr[ADDR_WIDTH:ADDR_WIDTH-1], wq2_rptr[ADDR_WIDTH-2:0]});
-
-    always @(posedge W_CLK or negedge W_RST) begin
-        if (!W_RST) begin
-            FULL <= 1'b0;
-        end else begin
-            FULL <= wfull_val;
-        end
-    end
+fifo_wr u_fifo_wr (            
+.w_clk(i_w_clk),              
+.w_rstn(i_w_rstn),             
+.w_inc(i_w_inc),            
+.sync_rd_ptr(r2w_ptr),                
+.w_addr(w_addr),            
+.gray_w_ptr(gray_w_ptr),        
+.full(o_full)
+);               
 
 
-    // ==========================================
-    // 3. READ POINTER & EMPTY FLAG GENERATION
-    // ==========================================
-    assign rbinnext = rbin + ((R_INC && !EMPTY) ? 5'b00001 : 5'b00000);
-    assign rgraynext = (rbinnext >> 1) ^ rbinnext; // Binary to Gray formula
+fifo_rd u_fifo_rd (
+.r_clk(i_r_clk),              
+.r_rstn(i_r_rstn),             
+.r_inc(i_r_inc),              
+.sync_wr_ptr(w2r_ptr),                
+.rd_addr(r_addr),            
+.gray_rd_ptr(gray_rd_ptr),        
+.empty(o_empty)
+);
 
-    always @(posedge R_CLK or negedge R_RST) begin
-        if (!R_RST) begin
-            rbin <= 0;
-            rptr <= 0;
-        end else begin
-            rbin <= rbinnext;
-            rptr <= rgraynext;
-        end
-    end
 
-    // Synchronize Write Pointer into Read Clock Domain (R_CLK)
-    always @(posedge R_CLK or negedge R_RST) begin
-        if (!R_RST) begin
-            rq1_wptr <= 0;
-            rq2_wptr <= 0;
-        end else begin
-            rq1_wptr <= wptr;
-            rq2_wptr <= rq1_wptr;
-        end
-    end
+DF_Sync #(.DATA_SIZE(4)) u_r2w_sync
+(
+.sync_clk(i_w_clk) ,
+.sync_rstn(i_w_rstn) ,
+.unsync_ip(gray_rd_ptr) ,
+.sync_op(r2w_ptr)
+);
 
-    // Empty condition check
-    // Empty when Gray read pointer perfectly matches synchronized Gray write pointer
-    wire rempty_val = (rgraynext == rq2_wptr);
-
-    always @(posedge R_CLK or negedge R_RST) begin
-        if (!R_RST) begin
-            EMPTY <= 1'b1; // Start empty!
-        end else begin
-            EMPTY <= rempty_val;
-        end
-    end
 
 endmodule

@@ -1,43 +1,95 @@
-module data_sync (
-    input  wire [7:0] unsync_bus,     // Unsynchronized 8-bit data bus (from source clock domain)
-    input  wire       bus_enable,     // Enable control signal (from source clock domain)
-    input  wire       dest_clk,       // Destination domain Clock
-    input  wire       dest_rst,       // Destination domain Active-Low Reset
 
-    output reg  [7:0] sync_bus,       // Synchronized 8-bit data bus (valid on enable_pulse_d)
-    output wire       enable_pulse_d  // 1-clock-cycle pulse indicating sync_bus is updated
+/////////////////////////////////////////////////////////////
+//////////////////// data synchronizer //////////////////////
+/////////////////////////////////////////////////////////////
+
+module DATA_SYNC # ( 
+     parameter NUM_STAGES = 2 ,
+	 parameter BUS_WIDTH = 8 
+)(
+input    wire                      CLK,
+input    wire                      RST,
+input    wire     [BUS_WIDTH-1:0]  unsync_bus,
+input    wire                      bus_enable,
+output   reg      [BUS_WIDTH-1:0]  sync_bus,
+output   reg                       enable_pulse_d
 );
 
-    // 1. Two-stage synchronizer registers for the single-bit "bus_enable"
-    reg enable_sync_stage1;
-    reg enable_sync_stage2;
 
-    // 2. Delay register for edge detection (to generate the 1-cycle output pulse)
-    reg enable_sync_stage2_delay;
 
-    // Synchronize the enable signal into the dest_clk domain
-    always @(posedge dest_clk or negedge dest_rst) begin
-        if (!dest_rst) begin
-            enable_sync_stage1       <= 1'b0;
-            enable_sync_stage2       <= 1'b0;
-            enable_sync_stage2_delay <= 1'b0;
-        end else begin
-            enable_sync_stage1       <= bus_enable;
-            enable_sync_stage2       <= enable_sync_stage1;
-            enable_sync_stage2_delay <= enable_sync_stage2;
-        end
-    end
+//internal connections
+reg   [NUM_STAGES-1:0]    sync_reg;
+reg                       enable_flop ;
+					 
+wire                      enable_pulse ;
 
-    // 3. Generate the 1-cycle output pulse using rising-edge detection
-    assign enable_pulse_d = enable_sync_stage2 && !enable_sync_stage2_delay;
+wire  [BUS_WIDTH-1:0]     sync_bus_c ;
+					 
+//----------------- Multi flop synchronizer --------------
 
-    // 4. Safely capture the data bus when the synchronized enable pulse occurs
-    always @(posedge dest_clk or negedge dest_rst) begin
-        if (!dest_rst) begin
-            sync_bus <= 8'd0;
-        end else if (enable_pulse_d) begin
-            sync_bus <= unsync_bus; // Capture the stable data bus
-        end
-    end
+always @(posedge CLK or negedge RST)
+ begin
+  if(!RST)      // active low
+   begin
+    sync_reg <= 'b0 ;
+   end
+  else
+   begin
+    sync_reg <= {sync_reg[NUM_STAGES-2:0],bus_enable};
+   end  
+ end
+ 
+
+//----------------- pulse generator --------------------
+
+always @(posedge CLK or negedge RST)
+ begin
+  if(!RST)      // active low
+   begin
+    enable_flop <= 1'b0 ;	
+   end
+  else
+   begin
+    enable_flop <= sync_reg[NUM_STAGES-1] ;
+   end  
+ end
+
+ 
+assign enable_pulse = sync_reg[NUM_STAGES-1] && !enable_flop ;
+
+
+//----------------- multiplexing --------------------
+
+assign sync_bus_c =  enable_pulse ? unsync_bus : sync_bus ;  
+
+
+//----------- destination domain flop ---------------
+
+always @(posedge CLK or negedge RST)
+ begin
+  if(!RST)      // active low
+   begin
+    sync_bus <= 'b0 ;	
+   end
+  else
+   begin
+    sync_bus <= sync_bus_c ;
+   end  
+ end
+ 
+//--------------- delay generated pulse ------------
+
+always @(posedge CLK or negedge RST)
+ begin
+  if(!RST)      // active low
+   begin
+    enable_pulse_d <= 1'b0 ;	
+   end
+  else
+   begin
+    enable_pulse_d <= enable_pulse ;
+   end  
+ end
+ 
 
 endmodule

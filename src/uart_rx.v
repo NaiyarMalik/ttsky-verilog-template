@@ -1,217 +1,108 @@
-module uart_rx
-	#(parameter DATA = 8)
-	(
-		input  wire            rx_in,        // Serial input line
-		input  wire [5:0]      prescale,     // Oversampling rate (usually 16 or 8)
-		input  wire            par_en,       // Parity enable
-		input  wire            par_typ,      // Parity type (0: even, 1: odd)
-		input  wire            clk,          // Receiver system clock
-		input  wire            rst,          // Active-low reset
 
-		output reg [DATA-1:0]  p_data,       // Parallel received byte
-		output reg             data_vld,     // Pulses high when packet is ready
-		output reg             par_err,      // High if parity mismatch detected
-		output reg             stp_err       // High if invalid stop bit (0 instead of 1)
-	);
+module UART_RX # (parameter DATA_WIDTH = 8)
 
-	localparam  IDLE      = 3'b000,
-	            START_BIT = 3'b001,
-	            DATA_BITS = 3'b010,
-	            PARITY    = 3'b011,
-	            STOP_BIT  = 3'b100;
+(
+ input   wire                          CLK,
+ input   wire                          RST,
+ input   wire                          RX_IN,
+ input   wire                          parity_enable,
+ input   wire                          parity_type,
+ input   wire   [5:0]                  Prescale, 
+ output  wire   [DATA_WIDTH-1:0]       P_DATA, 
+ output  wire                          data_valid,
+ output  wire                          parity_error,
+ output  wire                          framing_error
+);
 
-	reg [2:0] current_state, next_state;
-	reg [2:0] bit_counter;
-	reg [5:0] prescale_counter;
-	reg [DATA-1:0] rx_data_buffer;
-	
-	reg sampled_parity_bit;
-	reg sampled_stop_bit;
-	reg parity_calculated;
 
-	// Helper definitions for sampling logic
-	wire [5:0] middle_of_bit = (prescale >> 1);
-	wire [5:0] end_of_bit    = (prescale - 1'b1);
+wire   [3:0]           bit_count ;
+wire   [5:0]           edge_count ;
 
-	// Sequential Block
-	always @(posedge clk) 
-		begin
-			if (!rst) 
-				begin
-					current_state    <= IDLE;
-					bit_counter      <= 3'd0;
-					prescale_counter <= 6'd0;
-					rx_data_buffer   <= {DATA{1'b0}};
-					sampled_parity_bit <= 1'b0;
-					sampled_stop_bit   <= 1'b0;
-				end 
-			
-			else 
-				
-				begin
-					current_state <= next_state;
+wire                   edge_bit_en; 
+wire                   deser_en; 
+wire                   par_chk_en; 
+wire                   stp_chk_en; 
+wire                   strt_chk_en; 
+wire                   strt_glitch;
+wire                   sampled_bit;
+wire                   dat_samp_en;
 
-					// --- Prescale Counter Logic ---
-					if (current_state == IDLE) 
-						begin
-							prescale_counter <= 6'd0;
-						end 
-					else if (prescale_counter == end_of_bit) 
-						begin
-							prescale_counter <= 6'd0; // Reset counter at bit boundaries
-						end 
-					else 
-						begin
-							prescale_counter <= prescale_counter + 1'b1;
-						end
+ 
+uart_rx_fsm # ( .DATA_WIDTH(8)) U0_uart_fsm (
+.CLK(CLK),
+.RST(RST),
+.S_DATA(RX_IN),
+.Prescale(Prescale),
+.bit_count(bit_count),
+.parity_enable(parity_enable),
+.edge_count(edge_count), 
+.strt_glitch(strt_glitch),
+.par_err(parity_error),
+.stp_err(framing_error), 
+.strt_chk_en(strt_chk_en),
+.edge_bit_en(edge_bit_en), 
+.deser_en(deser_en), 
+.par_chk_en(par_chk_en), 
+.stp_chk_en(stp_chk_en),
+.dat_samp_en(dat_samp_en),
+.data_valid(data_valid)
+);
+ 
+ 
+edge_bit_counter U0_edge_bit_counter (
+.CLK(CLK),
+.RST(RST),
+.Prescale(Prescale),
+.Enable(edge_bit_en),
+.bit_count(bit_count),
+.edge_count(edge_count) 
+); 
 
-					// --- Data Bit Sampling Logic ---
-					if (current_state == DATA_BITS) 
-						begin
-							if (prescale_counter == middle_of_bit) 
-								begin
-									rx_data_buffer[bit_counter] <= rx_in; // Sample in the exact middle of the bit
-								end
-							
-							if (prescale_counter == end_of_bit) 
-								begin
-									if (bit_counter == 3'd7) 
-										bit_counter <= 3'd0;
-									else 
-										bit_counter <= bit_counter + 1'b1;
-								end
-						end 
-					else 
-						begin
-							bit_counter <= 3'd0;
-						end
+data_sampling U0_data_sampling (
+.CLK(CLK),
+.RST(RST),
+.S_DATA(RX_IN),
+.Prescale(Prescale),
+.Enable(dat_samp_en),
+.edge_count(edge_count),
+.sampled_bit(sampled_bit)
+);
 
-					// --- Parity Sampling Logic ---
-					if (current_state == PARITY && (prescale_counter == middle_of_bit)) 
-						begin
-							sampled_parity_bit <= rx_in;
-						end
+deserializer # ( .DATA_WIDTH(8)) U0_deserializer (
+.CLK(CLK),
+.RST(RST),
+.Prescale(Prescale),
+.sampled_bit(sampled_bit),
+.Enable(deser_en),
+.edge_count(edge_count), 
+.P_DATA(P_DATA)
+);
 
-					// --- Stop Bit Sampling Logic ---
-					if (current_state == STOP_BIT && (prescale_counter == middle_of_bit)) 
-						begin
-							sampled_stop_bit <= rx_in;
-						end
-				end
-		end
+strt_chk U0_strt_chk (
+.CLK(CLK),
+.RST(RST),
+.sampled_bit(sampled_bit),
+.Enable(strt_chk_en), 
+.strt_glitch(strt_glitch)
+);
 
-	// Combinational Block: Parity Check Calculation
-	always @(*) 
-		begin
-			if (par_typ) 
-				begin
-					parity_calculated = ~^rx_data_buffer; // Odd Parity
-				end 
-			else 
-				begin
-					parity_calculated = ^rx_data_buffer;  // Even Parity
-				end
-		end
+par_chk # ( .DATA_WIDTH(8)) U0_par_chk (
+.CLK(CLK),
+.RST(RST),
+.parity_type(parity_type),
+.sampled_bit(sampled_bit),
+.Enable(par_chk_en), 
+.P_DATA(P_DATA),
+.par_err(parity_error)
+);
 
-	// Combinational Block: FSM State Transitions
-	always @(*) 
-		begin
-			next_state = current_state;
+stp_chk U0_stp_chk (
+.CLK(CLK),
+.RST(RST),
+.sampled_bit(sampled_bit),
+.Enable(stp_chk_en), 
+.stp_err(framing_error)
+);
 
-			case (current_state)
-				IDLE: 
-					begin
-						// Wait for the line to drop low (Start Bit detected)
-						if (rx_in == 1'b0) 
-							next_state = START_BIT;
-						else 
-							next_state = IDLE;
-					end
-
-				START_BIT: 
-					begin
-						if (prescale_counter == end_of_bit) 
-							begin
-								// Double-check at the middle point: if it was noise, reset to IDLE
-								if (rx_data_buffer == 8'h00 && rx_in == 1'b1 && (prescale_counter < middle_of_bit)) 
-									next_state = IDLE;
-								else
-									next_state = DATA_BITS;
-							end
-					end
-
-				DATA_BITS: 
-					begin
-						if (bit_counter == 3'd7 && prescale_counter == end_of_bit) 
-							begin
-								if (par_en) 
-									next_state = PARITY;
-								else 
-									next_state = STOP_BIT;
-							end
-					end
-
-				PARITY: 
-					begin
-						if (prescale_counter == end_of_bit) 
-							next_state = STOP_BIT;
-					end
-
-				STOP_BIT: 
-					begin
-						if (prescale_counter == end_of_bit) 
-							next_state = IDLE;
-					end
-
-				default: 
-					begin
-						next_state = IDLE;
-					end
-			endcase
-		end
-
-	// Sequential Block: Error Flag Registers & Parallel Data Output Publish
-	always @(posedge clk) 
-		begin
-			if (!rst) 
-				begin
-					p_data   <= {DATA{1'b0}};
-					data_vld <= 1'b0;
-					par_err  <= 1'b0;
-					stp_err  <= 1'b0;
-				end 
-			else 
-				begin
-					// Clear flag pulses by default
-					data_vld <= 1'b0; 
-
-					// We make our final checks and update output lines in the STOP state
-					if (current_state == STOP_BIT && prescale_counter == end_of_bit) 
-						begin
-							// Check 1: Stop Bit Framing Error (must be 1)
-							if (sampled_stop_bit == 1'b0) 
-								begin
-									stp_err  <= 1'b1;
-									par_err  <= 1'b0;
-									data_vld <= 1'b0;
-								end 
-							// Check 2: Parity Error
-							else if (par_en && (sampled_parity_bit != parity_calculated)) 
-								begin
-									par_err  <= 1'b1;
-									stp_err  <= 1'b0;
-									data_vld <= 1'b0;
-								end 
-							// Frame is perfectly valid!
-							else 
-								begin
-									p_data   <= rx_data_buffer;
-									data_vld <= 1'b1;
-									par_err  <= 1'b0;
-									stp_err  <= 1'b0;
-								end
-						end
-				end
-		end
 
 endmodule

@@ -1,317 +1,375 @@
-module sys_ctrl 
-	
-	#(parameter REGWIDTH = 8, parameter ADDY = 4)
-	(
-	
-	
-		input clk, rst, 
-		
-		// FIFO
-		input fifo_full,
-		
-		// ALU
-		input [15:0] ALU_OUT, // ALU result
-		input out_valid,
-		output [3:0] ALU_FUN,
-		output en, // enable the ALU unit
-		
-		
-		output clk_en, // Clock Gate
-		
-		// RegFile
-		output [ADDY-1:0] address,
-		output WrEn, RdEn,
-		output [REGWIDTH-1:0] WrData,
-		input [REGWIDTH-1:0] RdData,
-		input RdData_Valid,
-	
-		// UART
-		input [REGWIDTH-1:0] RX_P_DATA, // recieved frame
-		input RX_D_VLD, 
-		output TX_D_VLD,
-		output [REGWIDTH-1:0] TX_P_DATA, // transmits frame
-		
-		
-		// CLK DIV
-		output clk_div_en
-		
-	);
-	
-	
-	reg WrEn_i;
-	reg RdEn_i;
-	reg [7:0] WrData_i;
-	reg [7:0] TX_P_DATA_i;
-	reg TX_D_VLD_i;
-	reg en_i;
-	reg clk_en_i;
-	
-	
-	
-	reg [3:0] current_state;
-	reg [3:0] next_state;
-	
-	localparam  IDLE             = 4'b0000,
-                START           = 4'b0001,
-                READ_CMD        = 4'b0010,
-                WRITE_CMD       = 4'b0011,
-                ALU_CMD         = 4'b0100,
-                ALU_NO_OP_CMD   = 4'b0101,
-                READ_WHERE      = 4'b0110,
-                WRITE_WHERE     = 4'b0111,
-                OP_A            = 4'b1000,
-                OP_B            = 4'b1001,
-                WRITE_WHAT      = 4'b1010,
-                READOUT         = 4'b1011,
-                ALU_FUN_CMD     = 4'b1100,
-                ALU_WAIT        = 4'b1101,
-                ALU_TX_LOW      = 4'b1110,
-                ALU_TX_HIGH     = 4'b1111;
-                
-               
-    localparam  WRITE     = 8'hAA,
-                READ      = 8'hBB,
-                ALU_OP    = 8'hCC,
-                ALU_OP_NO = 8'hDD;
-	
 
-	reg [ADDY-1:0] hold_address;
-	reg [REGWIDTH-1:0] hold_wr_data;
-	reg [REGWIDTH-1:0] hold_OP_A;
-	reg [REGWIDTH-1:0] hold_OP_B;
-	reg [3:0] hold_alu_fun;
-	reg [15:0] hold_alu_out;
-	
-	
-	always @ (posedge clk)
-		begin
-			if(!rst)
-				begin
-					current_state <= IDLE;
-					hold_address  <= {ADDY{1'b0}};
-               hold_wr_data  <= {REGWIDTH{1'b0}};
-               hold_alu_fun  <= 4'b0;
-               hold_alu_out  <= 16'b0;
-				end
-			else
-				begin
-					
-					current_state <= next_state;
-					
-					if ((current_state == WRITE_WHERE || current_state == READ_WHERE) && RX_D_VLD)						 
+module SYS_CTRL #(parameter WIDTH = 8, ADDR = 4 )
+
+(
+input    wire                 CLK,
+input    wire                 RST,
+input    wire   [WIDTH-1:0]   RF_RdData,
+input    wire                 RF_RdData_VLD,
+input    wire   [WIDTH*2-1:0] ALU_OUT,
+input    wire                 ALU_OUT_VLD, 
+input    wire   [WIDTH-1:0]   UART_RX_DATA, 
+input    wire                 UART_RX_VLD,
+input    wire                 FIFO_FULL,
+output   reg                  ALU_EN,
+output   reg    [3:0]         ALU_FUN,  
+output   reg                  CLKG_EN, 
+output   reg                  CLKDIV_EN,
+output   reg                  RF_WrEn,
+output   reg                  RF_RdEn,
+output   reg   [ADDR-1:0]     RF_Address,
+output   reg   [WIDTH-1:0]    RF_WrData,
+output   reg   [WIDTH-1:0]    UART_TX_DATA, 
+output   reg                  UART_TX_VLD
+);
+
+
+// state encoding
+localparam  [3:0]      IDLE         = 4'b0000 ,
+					   WRITE_ADD_S  = 4'b0001 ,
+					   WRITE_DAT_S  = 4'b0011 ,
+					   READ_ADD_S   = 4'b0110 ,
+					   SEND_RF_RD_DAT_S  = 4'b0100 ,
+					   ALU_WP_OPA_S = 4'b1000 ,
+					   ALU_WP_OPB_S = 4'b1001 ,					   
+					   ALU_OP_FUN_S = 4'b1100 ,
+					   ALU_OUT_STORE_S = 4'b1110 ,
+                       ALU_WAIT_1st_byte_S = 4'b1111 ,
+					   ALU_WAIT_2nd_byte_S = 4'b1101 ;
+					   
+localparam  [7:0]      RF_WRITE_CMD  = 8'hAA ,
+                       RF_READ_CMD   = 8'hBB ,
+					   ALU_W_OP_CMD  = 8'hCC ,
+					   ALU_WN_OP_CMD = 8'hDD ;
+					   
+reg         [3:0]      current_state , 
+                       next_state    ;
+
+reg         [7:0]      RF_ADDR_REG  ;
+reg  [2*WIDTH-1:0]     ALU_OUT_REG  ;
+
+reg                    RF_ADDR_SAVE   ,
+                       ALU_OUT_SAVE  ;		
+
+					   
+//state transiton 
+always @ (posedge CLK or negedge RST)
+ begin
+  if(!RST)
+   begin
+    current_state <= IDLE ;
+   end
+  else
+   begin
+    current_state <= next_state ;
+   end
+ end
+ 
+
+// next state logic
+always @ (*)
+ begin
+  case(current_state)
+  IDLE   	: begin
+				if(UART_RX_VLD)
+			      begin
+					case(UART_RX_DATA)  // command
+					RF_WRITE_CMD : begin
+									next_state = WRITE_ADD_S ;				
+								   end
+					RF_READ_CMD  : begin
+									next_state = READ_ADD_S ;				
+								   end
+					ALU_W_OP_CMD : begin
+									next_state = ALU_WP_OPA_S ;				
+								   end
+					ALU_WN_OP_CMD: begin
+			                        next_state = ALU_OP_FUN_S ;				
+								   end							   
+					default      : begin
+									next_state = IDLE ;				
+								   end
+					endcase	
+				  end
+				else
+				  begin
+					next_state = IDLE ;
+				  end
+				end			  							  			
+  WRITE_ADD_S : begin
+				 if(UART_RX_VLD)
+			       begin
+			        next_state = WRITE_DAT_S ; 				
+                   end
+			     else
+			       begin
+			        next_state = WRITE_ADD_S ; 			
+                   end			  
+                end
+  WRITE_DAT_S : begin
+				 if(UART_RX_VLD)
+			       begin
+			        next_state = IDLE ; 				
+                   end
+			     else
+			       begin
+			        next_state = WRITE_DAT_S ; 			
+                   end			  
+                end  		  
+  READ_ADD_S  : begin
+				 if(UART_RX_VLD)
+			       begin
+			        next_state = SEND_RF_RD_DAT_S ; 				
+                   end
+			     else
+			       begin
+			        next_state = READ_ADD_S ; 			
+                   end			  
+                end
+ SEND_RF_RD_DAT_S : begin
+					if(RF_RdData_VLD)
+					  begin
+					   next_state = IDLE ; 				
+                      end
+			        else
+			          begin
+			           next_state = SEND_RF_RD_DAT_S ; 			
+                      end			  
+                    end
+  ALU_WP_OPA_S: begin
+				 if(UART_RX_VLD)
+			       begin
+			        next_state = ALU_WP_OPB_S ; 				
+                   end
+			     else
+			       begin
+			        next_state = ALU_WP_OPA_S ; 			
+                   end			  
+                end	
+  ALU_WP_OPB_S: begin
+				 if(UART_RX_VLD)
+			       begin
+			        next_state = ALU_OP_FUN_S ; 				
+                   end
+			     else
+			       begin
+			        next_state = ALU_WP_OPB_S ; 			
+                   end			  
+                end	
+  ALU_OP_FUN_S: begin
+					if(UART_RX_VLD)
 						begin
-							hold_address <= RX_P_DATA[ADDY-1:0]; 
+							next_state = ALU_OUT_STORE_S ; 				
 						end
-						 
-					if ((current_state == WRITE_WHAT) && RX_D_VLD)
-						begin
-							hold_wr_data <= RX_P_DATA;
-						end		
-						
-								
-					if((current_state == OP_A) && RX_D_VLD)
-						begin
-							hold_wr_data <= RX_P_DATA;
-							hold_address <= {ADDY{1'b0}};
-						end
-							
-					if((current_state == OP_B) && RX_D_VLD)
-						begin
-							hold_address <= 4'b0001;
-							hold_wr_data <= RX_P_DATA;
-						end
-	
-					if ((current_state == ALU_FUN_CMD) && RX_D_VLD)
-						begin
-							hold_alu_fun <= RX_P_DATA[3:0];
-						end
-						
-					if (out_valid)
-                  begin
-                     hold_alu_out <= ALU_OUT;
-                  end
-	
-			  end
-	end
-	
-	
-		
-	always @ (*)
-		begin
-		
-			next_state  = current_state; // Prevents state latches
-			WrEn_i      = 1'b0;
-			RdEn_i      = 1'b0;
-			en_i        = 1'b0;
-			clk_en_i    = 1'b0;
-			TX_P_DATA_i = {REGWIDTH{1'b0}};
-			TX_D_VLD_i  = 1'b0;
-				
-				
-			case(current_state)
-				IDLE:
-					if(RX_D_VLD)
-						next_state = START;
 					else
-						next_state = IDLE;
-						
-				START:
-					case(RX_P_DATA)
-						WRITE:
-							next_state = WRITE_CMD;
-						
-						READ:
-							next_state = READ_CMD;
-							
-						ALU_OP:
-							next_state = ALU_CMD;
-						
-						ALU_OP_NO:
-							next_state = ALU_NO_OP_CMD;
-						
-						default:
-							next_state = IDLE;
-							
-					endcase
-			
-				WRITE_CMD:
-					next_state = WRITE_WHERE;
-					
-					
-				WRITE_WHERE:
-					if(RX_D_VLD)
 						begin
-							next_state = WRITE_WHAT;
-						end
-					else
-						next_state = WRITE_WHERE;
-						
-				WRITE_WHAT:
-					if(RX_D_VLD)
-						begin
-							WrEn_i = 1'b1;
-							next_state = IDLE;
-						end
-					else
-						next_state = WRITE_WHAT;
-						
-				
-				READ_CMD:
-					next_state = READ_WHERE;
-				
-				READ_WHERE:
-					if(RX_D_VLD)
-						begin
-							RdEn_i = 1'b1;
-							next_state = READOUT;
-						end
-					else
-						next_state = READ_WHERE;
-				
-				READOUT:
-					begin
-						RdEn_i = 1'b1;
-						if(RdData_Valid && !fifo_full)
+							next_state = ALU_OP_FUN_S ; 			
+					end			  
+                end	
+  ALU_OUT_STORE_S : begin
+						if(ALU_OUT_VLD)
 							begin
-								TX_P_DATA_i = RdData;
-								TX_D_VLD_i = 1'b1;
-								next_state = IDLE;
+								next_state = ALU_WAIT_1st_byte_S ; 				
 							end
 						else
 							begin
-								next_state = READOUT;
+								next_state = ALU_OUT_STORE_S ; 			
+							end			  
+						end
+  ALU_WAIT_1st_byte_S : begin
+							next_state = ALU_WAIT_2nd_byte_S ; 						  
+						end	
+  ALU_WAIT_2nd_byte_S : begin
+							next_state = IDLE ; 						  
+						end				
+  default     : begin
+			      next_state = IDLE ; 
+                end	
+  endcase                 	   
+ end 
+
+// output logic
+always @ (*)
+ begin
+   ALU_EN     = 1'b0 ;
+   ALU_FUN    = 4'b0 ;  
+   CLKG_EN    = 1'b0 ; 
+   CLKDIV_EN  = 1'b1 ;
+   RF_WrEn    = 1'b0 ;
+   RF_RdEn    = 1'b0 ;
+   RF_Address =  'b0 ;
+   RF_WrData  =  'b0 ;
+   UART_TX_DATA ='b0 ;
+   UART_TX_VLD  = 1'b0 ; 
+   ALU_OUT_SAVE = 1'b0 ;
+   RF_ADDR_SAVE = 1'b0 ;  
+  case(current_state)
+  IDLE   	  : begin
+				  ALU_EN     = 1'b0 ;
+				  ALU_FUN    = 4'b0 ;  
+				  CLKG_EN    = 1'b0 ; 
+				  CLKDIV_EN  = 1'b1 ;
+				  RF_WrEn    = 1'b0 ;
+				  RF_RdEn    = 1'b0 ;
+				  RF_Address =  'b0 ;
+				  RF_WrData  =  'b0 ;
+				end			  							  			
+  WRITE_ADD_S : begin
+				 if(UART_RX_VLD)
+			       begin
+			        RF_ADDR_SAVE = 1'b1 ; 				
+                   end
+			     else
+			       begin
+			        RF_ADDR_SAVE = 1'b0 ; 			
+                   end					   	  
+                end
+  WRITE_DAT_S : begin
+				 if(UART_RX_VLD)
+			       begin
+				    RF_WrEn    = 1'b1 ;
+					RF_Address = RF_ADDR_REG[ADDR-1:0]  ;
+					RF_WrData  = UART_RX_DATA ;
+                   end
+			     else
+			       begin
+				    RF_WrEn    = 1'b0 ;
+					RF_Address = RF_ADDR_REG[ADDR-1:0]  ;
+					RF_WrData  = UART_RX_DATA ; 			
+                   end					   	  
+                end
+  READ_ADD_S  : begin
+				if(UART_RX_VLD)
+			      begin
+					RF_RdEn    = 1'b1 ;
+				    RF_Address = UART_RX_DATA[ADDR-1:0] ;
+				  end	
+			    else
+			       begin
+			        RF_RdEn = 1'b0 ; 			
+                   end					   	  
+                end				
+  SEND_RF_RD_DAT_S : begin
+						if(RF_RdData_VLD && !FIFO_FULL)
+							begin
+								UART_TX_DATA  = RF_RdData ; 
+								UART_TX_VLD   = 1'b1 ;	
 							end
+						else
+							begin
+								UART_TX_VLD   = 1'b0 ;	
+							end	
 					end
-								
-				ALU_CMD:
-					next_state = OP_A;
-					
-				OP_A:
-					if(RX_D_VLD)
-						begin
-							WrEn_i = 1'b1;
-							next_state = OP_B;
-						end
-					else
-						next_state = OP_A;
-						
-				OP_B:
-					if(RX_D_VLD)
-						begin
-							WrEn_i = 1'b1;
-							next_state = ALU_FUN_CMD;
-						end
-					else
-						next_state = OP_B;
-				
-				ALU_FUN_CMD:
-					if(RX_D_VLD)
-						begin
-							en_i = 1'b1;
-							clk_en_i = 1'b1;
-							next_state = ALU_WAIT;
-							
-						end
-					else
-						next_state = ALU_FUN_CMD;
-				
-				ALU_WAIT:
-                    begin
-                        en_i   = 1'b1; 
-                        clk_en_i = 1'b1; 
-                        if(out_valid)
-                            next_state = ALU_TX_LOW; // Result
-                        else
-                            next_state = ALU_WAIT;
-                    end
+  ALU_WP_OPA_S  : begin
+				 if(UART_RX_VLD)
+				   begin
+				    RF_WrEn    = 1'b1         ;
+					RF_Address = 'b00         ;
+					RF_WrData  = UART_RX_DATA ;
+				   end	
+			     else
+			       begin
+				    RF_WrEn    = 1'b0         ;
+					RF_Address = 'b00         ;
+					RF_WrData  = UART_RX_DATA ; 			
+                   end			  
+                end	
+  ALU_WP_OPB_S: begin
+				 if(UART_RX_VLD)
+				  begin
+				    RF_WrEn    = 1'b1         ;
+					RF_Address = 'b01         ;
+					RF_WrData  = UART_RX_DATA ;
+				  end	
+			     else
+			       begin
+				    RF_WrEn    = 1'b0         ;
+					RF_Address = 'b01         ;
+					RF_WrData  = UART_RX_DATA ;		
+                   end			  
+                end	
+  ALU_OP_FUN_S: begin
+				 CLKG_EN = 1'b1 ;  
+				 if(UART_RX_VLD)
+			       begin
+                     ALU_EN  = 1'b1 ;
+                     ALU_FUN = UART_RX_DATA[3:0] ; 
+                   end
+			     else
+			       begin
+                     ALU_EN  = 1'b0 ;
+                     ALU_FUN = UART_RX_DATA[3:0] ; 
+                   end			  
+                end	
+  ALU_OUT_STORE_S: begin
+						CLKG_EN = 1'b1 ;
+						if(ALU_OUT_VLD)
+							begin
+								ALU_OUT_SAVE = 1'b1 ;					 
+							end
+						else
+							begin
+								ALU_OUT_SAVE   = 1'b0 ;	
+							end	
+						end						
+  ALU_WAIT_1st_byte_S:	begin
+							CLKG_EN = 1'b1 ;
+							if(!FIFO_FULL)	
+							begin			
+								UART_TX_DATA  = ALU_OUT_REG[WIDTH-1:0] ; 
+								UART_TX_VLD   = 1'b1 ;	
+							end	
+						end	
+  ALU_WAIT_2nd_byte_S: 	begin
+							CLKG_EN = 1'b1 ;
+							if(!FIFO_FULL)	
+								begin	
+									UART_TX_DATA  = ALU_OUT_REG[2*WIDTH-1:WIDTH] ; 
+									UART_TX_VLD   = 1'b1 ;	
+								end
+						end	
+  default : begin
+		    ALU_EN     = 1'b0 ;
+		    ALU_FUN    = 4'b0 ;  
+		    CLKG_EN    = 1'b0 ; 
+	        CLKDIV_EN  = 1'b1 ;
+		    RF_WrEn    = 1'b0 ;
+		    RF_RdEn    = 1'b0 ;
+		    RF_Address =  'b0 ;
+		    RF_WrData  =  'b0 ;
+                end	
+  endcase                 	   
+ end 
 
-            ALU_TX_LOW:
-                    begin
-								if(!fifo_full)
-									begin
-										// Transmit lower byte of the 16-bit ALU output [7:0]
-										TX_P_DATA_i = hold_alu_out[7:0];
-										TX_D_VLD_i  = 1'b1;
-										next_state  = ALU_TX_HIGH;
-									end
-						  end
-
-            ALU_TX_HIGH:
-                    begin
-								if(!fifo_full)
-									begin
-										// Transmit upper byte of the 16-bit ALU output [15:8]
-										TX_P_DATA_i = hold_alu_out[15:8];
-										TX_D_VLD_i  = 1'b1;
-										next_state  = IDLE;
-									end
-						  end
-            
-				ALU_NO_OP_CMD:
-					begin
-						next_state = ALU_FUN_CMD;
-					end 
-				
-				
-            default: 
-					next_state = IDLE;
-					
-				
-			endcase
-		
-		end
-		
-		
-	assign WrEn = WrEn_i;
-	assign RdEn = RdEn_i;
-	assign en = en_i;
-	assign TX_P_DATA = TX_P_DATA_i;
-	assign TX_D_VLD = TX_D_VLD_i;
-	assign address = hold_address;
-	assign WrData = hold_wr_data;
-	assign ALU_FUN = hold_alu_fun;
-	assign clk_en = clk_en_i;
-	assign clk_div_en = 1'b1;
-		
-		
+// **************** storing RF Address **************** //
+always @ (posedge CLK or negedge RST)
+ begin
+  if(!RST)
+   begin
+    RF_ADDR_REG <= 8'b0 ;
+   end
+  else
+   begin
+    if (RF_ADDR_SAVE)
+	 begin	
+      RF_ADDR_REG <= UART_RX_DATA ;
+	 end 
+   end
+ end
+// **************** storing ALU Function **************** //
+always @ (posedge CLK or negedge RST)
+ begin
+  if(!RST)
+   begin
+    ALU_OUT_REG <= 'b0 ;
+   end
+  else
+   begin
+    if (ALU_OUT_SAVE)
+	 begin	
+      ALU_OUT_REG <= ALU_OUT ;
+	 end 
+   end
+ end 
+ 
 endmodule

@@ -1,30 +1,38 @@
-module pulse_gen
-	(
-	
-		input rst, clk, lvl_sig,
-		
-		output pulse_sig
-	
-	);
-	
 
-	reg lvl_sig_delay;
-	
-	always @ (posedge clk or negedge rst)
-		begin
-			if(!rst)
-				begin
-					lvl_sig_delay <= 1'b0;
-				end
-			else
-				begin
-					lvl_sig_delay <= lvl_sig;
-				end
-		end
-	
-		
-		
-	assign pulse_sig = lvl_sig && !lvl_sig_delay;	
-	
+/////////////////////////////////////////////////////////////
+///////////////////// bit synchronizer //////////////////////
+/////////////////////////////////////////////////////////////
+
+module PULSE_GEN 
+(
+input    wire                      clk,
+input    wire                      rst,
+input    wire                      lvl_sig,
+output   wire                      pulse_sig
+);
+
+
+reg              rcv_flop  , 
+                 pls_flop  ;
+					 
+					 
+always @(posedge clk or negedge rst)
+ begin
+  if(!rst)      // active low
+   begin
+    rcv_flop <= 1'b0 ;
+    pls_flop <= 1'b0 ;	
+   end
+  else
+   begin
+    rcv_flop <= lvl_sig;   
+    pls_flop <= rcv_flop;
+   end  
+ end
+ 
+//----------------- pulse generator --------------------
+
+assign pulse_sig = rcv_flop && !pls_flop ;
+
+
 endmodule
-	
