@@ -1,5 +1,5 @@
 
-module uart_rx_fsm  # ( parameter DATA_WIDTH = 8 ) (
+module uart_rx_fsm  (
 
  input   wire                  CLK,
  input   wire                  RST,

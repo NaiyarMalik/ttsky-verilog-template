@@ -45,7 +45,7 @@ localparam  [7:0]      RF_WRITE_CMD  = 8'hAA ,
 reg         [3:0]      current_state , 
                        next_state    ;
 
-reg         [7:0]      RF_ADDR_REG  ;
+reg         [3:0]      RF_ADDR_REG  ;
 reg  [2*WIDTH-1:0]     ALU_OUT_REG  ;
 
 reg                    RF_ADDR_SAVE   ,

@@ -11,6 +11,7 @@ module tt_um_TinyProcessor_naiyar_ (
 );
 
 
+
 wire UART_RX_IN;
 wire UART_TX_O;
 wire parity_error;
@@ -21,6 +22,9 @@ assign UART_RX_IN = ui_in[0];
 
 assign uio_out = 8'b0;
 assign uio_oe  = 8'b0;
+
+wire [6:0] unused_ui;
+assign unused_ui = ui_in[7:1];
 
 
 assign uo_out[0] = UART_TX_O;
