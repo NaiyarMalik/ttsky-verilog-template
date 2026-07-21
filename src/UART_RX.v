@@ -28,7 +28,7 @@ wire                   sampled_bit;
 wire                   dat_samp_en;
 
  
-uart_rx_fsm # ( .DATA_WIDTH(8)) U0_uart_fsm (
+uart_rx_fsm U0_uart_fsm (
 .CLK(CLK),
 .RST(RST),
 .S_DATA(RX_IN),
