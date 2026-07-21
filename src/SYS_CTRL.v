@@ -357,13 +357,13 @@ always @ (posedge CLK or negedge RST)
  begin
   if(!RST)
    begin
-    RF_ADDR_REG <= 8'b0 ;
+    RF_ADDR_REG <= 4'b0 ;
    end
   else
    begin
     if (RF_ADDR_SAVE)
 	 begin	
-      RF_ADDR_REG <= UART_RX_DATA ;
+      RF_ADDR_REG <= UART_RX_DATA[3:0] ;
 	 end 
    end
  end
