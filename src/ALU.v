@@ -45,12 +45,15 @@ always @(*)
      4'b0001: begin
                ALU_OUT_Comb = {8'b0,A} - {8'b0,B};
               end
+/*
      4'b0010: begin
                ALU_OUT_Comb = A*B;
               end
      4'b0011: begin
                ALU_OUT_Comb = {8'b0,A} / {8'b0,B};
               end
+*/
+
      4'b0100: begin
                ALU_OUT_Comb = {8'b0,A} & {8'b0,B};
               end
