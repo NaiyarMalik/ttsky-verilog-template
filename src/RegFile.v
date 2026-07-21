@@ -1,5 +1,5 @@
 
-module RegFile #(parameter WIDTH = 8, DEPTH = 16, ADDR = 4 )
+module RegFile #(parameter WIDTH = 8, DEPTH = 8, ADDR = 4 )
 
 (
 input    wire                CLK,
@@ -18,7 +18,7 @@ output   wire   [WIDTH-1:0]  REG3
 
 integer I ; 
   
-// register file of 8 registers each of 16 bits width
+// register file of 8 registers each of 8 bits width
 reg [WIDTH-1:0] regArr [DEPTH-1:0] ;    
 
 always @(posedge CLK or negedge RST)
